@@ -1,0 +1,11 @@
+[Unit]
+Description=Auto screen brightness from ambient light sensor
+After=default.target
+
+[Service]
+ExecStart=%h/.local/bin/ambientd --verbose
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

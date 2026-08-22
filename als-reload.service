@@ -1,0 +1,11 @@
+[Unit]
+Description=AMD SFH ALS driver reload after resume
+After=suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/modprobe -r hid_sensor_als
+ExecStart=/bin/sh -c 'sleep 1; /usr/bin/modprobe hid_sensor_als'
+
+[Install]
+WantedBy=suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target
