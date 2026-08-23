@@ -1,16 +1,28 @@
 # ambientd
 
-A small zero-dependency Rust daemon that automatically adjusts screen brightness
-based on the ambient light sensor (ALS) on Hyprland / Omarchy systems.
+A small zero-dependency Rust daemon that automatically adjusts screen (and
+keyboard) brightness based on the ambient light sensor (ALS) on any Linux
+system. It is **not** tied to a compositor or desktop environment: everything
+happens at the kernel/logind level, so it behaves identically under GNOME, KDE,
+sway, Hyprland, i3, or a bare TTY console.
 
 It polls the IIO ambient light sensor exposed by the AMD Sensor Fusion Hub,
 smooths the readings, maps them onto a logarithmic brightness curve, and drives
 the backlight through `brightnessctl` (which uses logind, so it works
 unprivileged).
 
-Confirmed working on an **ASUS Zenbook 14 OLED (UM3406HA)** running Hyprland.
-Everything is configurable, so other ALS-equipped laptops should work too —
-see `--sensor-dir`, `--device`, and `--kbd-device` below.
+## Requirements
+
+- Linux with an IIO ambient light sensor exposed in sysfs
+  (`/sys/bus/iio/devices/*/in_illuminance_raw`)
+- `brightnessctl` and a logind seat session (`loginctl` should list a session
+  for your user)
+- systemd, only for the convenience units installed by `install.sh` — the
+  binary itself has no such dependency
+
+Confirmed working on an **ASUS Zenbook 14 OLED (UM3406HA)** running
+Omarchy/Hyprland. Everything is configurable, so other ALS-equipped laptops
+should work too — see `--sensor-dir`, `--device`, and `--kbd-device` below.
 
 ## Hardware
 
