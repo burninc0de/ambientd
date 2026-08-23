@@ -80,6 +80,8 @@ OPTIONS:
   --kbd-on <lux>        keyboard backlight on at/below this lux (default 0.5)
   --kbd-off <lux>       keyboard backlight off at/above this lux (default 2)
   --kbd-device <name>   keyboard backlight device (default asus::kbd_backlight)
+  --kbd-service <unit>  companion unit: stop when bright, start when dark
+                        (e.g. asus-backlight-idle.service; default: none)
   --no-kbd              disable keyboard backlight automation
   --no-nudge            disable user-nudge baseline shifting
   -v, --verbose         log every reading
@@ -166,6 +168,37 @@ lux=   31.0 ema=   22.4 -> keyboard backlight off
 ```
 
 Disable with `--no-kbd` if you prefer Fn-key control only.
+
+#### Combining with asus-backlight-idle
+
+If you also run another daemon that touches the keyboard backlight — e.g.
+[asus-backlight-idle](https://github.com/burninc0de/asusbacklight), which dims
+the keyboard after N seconds without input and restores it on activity — the
+two can fight: one turns the light off, the other "helpfully" restores it,
+and the keyboard flickers or gets stuck on in bright rooms.
+
+ambientd solves this by deciding whether the companion daemon runs at all:
+
+```bash
+# CLI flag...
+ambientd --kbd-service asus-backlight-idle.service
+```
+
+```ini
+# ...or persistently in ~/.config/ambientd/config
+kbd_service=asus-backlight-idle.service
+```
+
+- Room goes **bright** → ambientd turns the backlight off and **stops** the
+  companion unit — nothing exists that could re-light behind its back.
+- Room goes **dark** → it turns the backlight on and **starts** the unit —
+  idle-dimming and input-restore work normally again. (A freshly started
+  idle-dimmer also re-dims after one timeout if nobody is actually typing, so
+  an unattended laptop self-corrects.)
+
+The unit is toggled only on Schmitt-trigger transitions, never per poll.
+asus-backlight-idle requires no changes and no awareness of ambientd — if you
+never set `--kbd-service`, it behaves exactly as documented in its own repo.
 
 ## How it works
 
