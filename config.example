@@ -1,0 +1,40 @@
+# ambientd configuration
+# Copy to ~/.config/ambientd/config and uncomment what you need.
+# key=value per line, '#' starts a comment. CLI flags override these.
+# Restart after editing:  systemctl --user restart ambientd
+
+# --- Polling ---
+# How often to read the sensor, in milliseconds. Lower = snappier, more CPU wakeups.
+#interval=1000
+
+# --- Brightness curve ---
+# Floor and ceiling of the brightness range, in percent.
+#min=10
+#max=100
+# Lux value mapped to full brightness. Lower = screen maxes out in dimmer rooms.
+#max_lux=500
+
+# --- Smoothing / responsiveness ---
+# EMA smoothing factor, 0..1. Lower = smoother/slower to react, higher = twitchier.
+#smooth=0.2
+# Only apply brightness changes larger than this many percent points (anti-flicker).
+#hysteresis=2
+
+# --- User nudges ---
+# Fn-key / brightnessctl changes get absorbed as a persistent baseline shift.
+#no_nudge=false
+
+# --- Keyboard backlight ---
+# Schmitt trigger thresholds in lux: on at/below kbd_on, off at/above kbd_off.
+#kbd_on=0.5
+#kbd_off=2
+# Device name under /sys/class/leds/.
+#kbd_device=asus::kbd_backlight
+# Disable keyboard automation entirely (true/false).
+#no_kbd=false
+
+# --- Hardware overrides ---
+# Backlight device name under /sys/class/backlight/.
+#device=amdgpu_bl1
+# Path to the IIO sensor directory.
+#sensor_dir=/sys/bus/iio/devices/iio:device0

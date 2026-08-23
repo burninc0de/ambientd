@@ -29,7 +29,7 @@ impl Default for Args {
     fn default() -> Self {
         Self {
             interval_ms: 1000,
-            min_pct: 5.0,
+            min_pct: 10.0,
             max_pct: 100.0,
             max_lux: 500.0,
             smooth: 0.2,
@@ -46,8 +46,55 @@ impl Default for Args {
     }
 }
 
+// Load simple key=value config from $XDG_CONFIG_HOME/ambientd/config or ~/.config/ambientd/config
+fn config_path() -> Option<String> {
+    if let Ok(cfg_home) = env::var("XDG_CONFIG_HOME") {
+        if !cfg_home.is_empty() {
+            return Some(format!("{}/ambientd/config", cfg_home));
+        }
+    }
+    if let Ok(home) = env::var("HOME") {
+        return Some(format!("{}/.config/ambientd/config", home));
+    }
+    None
+}
+
+fn load_config(args: &mut Args) {
+    if let Some(path) = config_path() {
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            for line in content.lines() {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('#') { continue; }
+                if let Some((k, v)) = line.split_once('=') {
+                    let k = k.trim();
+                    let v = v.trim();
+                    match k {
+                        "interval" | "interval_ms" => {
+                            if let Ok(ms) = v.parse::<u64>() { args.interval_ms = ms; }
+                        }
+                        "min" => if let Ok(p) = v.parse() { args.min_pct = p; }
+                        "max" => if let Ok(p) = v.parse() { args.max_pct = p; }
+                        "max_lux" => if let Ok(l) = v.parse() { args.max_lux = l; }
+                        "smooth" => if let Ok(s) = v.parse() { args.smooth = s; }
+                        "hysteresis" => if let Ok(h) = v.parse() { args.hysteresis_pct = h; }
+                        "device" => args.device = v.to_string(),
+                        "sensor_dir" => args.sensor_dir = v.to_string(),
+                        "kbd_on" => if let Ok(l) = v.parse() { args.kbd_on_lux = l; }
+                        "kbd_off" => if let Ok(l) = v.parse() { args.kbd_off_lux = l; }
+                        "kbd_device" => args.kbd_device = v.to_string(),
+                        "no_kbd" => args.kbd_enabled = v != "0" && v.to_lowercase() != "false",
+                        "no_nudge" => args.nudge_enabled = v != "0" && v.to_lowercase() != "false",
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn parse_args() -> Args {
     let mut a = Args::default();
+    load_config(&mut a);
     let mut it = env::args().skip(1);
     while let Some(arg) = it.next() {
         let mut val = |what: &str| -> String {
@@ -93,7 +140,7 @@ USAGE: ambientd [OPTIONS]
 
 OPTIONS:
   --interval <ms>       poll interval (default 1000)
-  --min <pct>           minimum brightness percent (default 5)
+  --min <pct>           minimum brightness percent (default 10)
   --max <pct>           maximum brightness percent (default 100)
   --max-lux <lux>       lux mapped to full brightness (default 500)
   --smooth <0..1>       EMA smoothing factor, lower = smoother (default 0.2)
@@ -105,6 +152,10 @@ OPTIONS:
   --kbd-device <name>   keyboard backlight device (default asus::kbd_backlight)
   --no-kbd              disable keyboard backlight automation
   --no-nudge            disable user-nudge baseline shifting
+
+CONFIG FILE:
+  ~/.config/ambientd/config (key=value per line, CLI flags override it)
+  e.g. interval=500
   -v, --verbose         log every reading
 ",
         if msg.is_empty() { String::new() } else { format!("error: {msg}\n\n") }

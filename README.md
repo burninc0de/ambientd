@@ -70,7 +70,7 @@ USAGE: ambientd [OPTIONS]
 
 OPTIONS:
   --interval <ms>       poll interval (default 1000)
-  --min <pct>           minimum brightness percent (default 5)
+  --min <pct>           minimum brightness percent (default 10)
   --max <pct>           maximum brightness percent (default 100)
   --max-lux <lux>       lux mapped to full brightness (default 500)
   --smooth <0..1>       EMA smoothing factor, lower = smoother (default 0.2)
@@ -86,11 +86,39 @@ OPTIONS:
   -h, --help            show help
 ```
 
-Example — snappier indoor profile with a floor of 10%:
+Example — snappier indoor profile (the default floor is already 10%):
 
 ```bash
-ambientd --max-lux 300 --min 10 --smooth 0.3
+ambientd --max-lux 300 --smooth 0.3
 ```
+
+### Config file
+
+Every option can also be set persistently in `~/.config/ambientd/config` as
+simple `key=value` lines (comments with `#`). CLI flags take precedence.
+Honors `$XDG_CONFIG_HOME`. **Changes require a restart:**
+`systemctl --user restart ambientd`.
+
+A fully annotated template with every key and its default lives in
+[`config.example`](config.example) — copy it as a starting point:
+
+```bash
+cp config.example ~/.config/ambientd/config
+$EDITOR ~/.config/ambientd/config
+systemctl --user restart ambientd
+```
+
+```
+# poll the sensor twice per second, snappier smoothing
+interval=500
+smooth=0.3
+hysteresis=1.5
+no_kbd=false
+```
+
+Recognized keys mirror the flags: `interval`, `min`, `max`, `max_lux`,
+`smooth`, `hysteresis`, `device`, `sensor_dir`, `kbd_on`, `kbd_off`,
+`kbd_device`, `no_kbd`, `no_nudge` (boolean keys accept `true`/`false`).
 
 ### Mapping curve
 
@@ -242,6 +270,7 @@ If that fails, you are probably not in a logind seat session (`loginctl` /
 ├── README.md
 ├── LICENSE
 ├── install.sh / uninstall.sh
+├── config.example             # annotated config file template
 ├── als-reload.service        # root unit: reload ALS driver after resume
 ├── ambientd.user.service     # user unit template
 └── src/main.rs               # entire implementation, std-only
