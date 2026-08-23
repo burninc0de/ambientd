@@ -118,7 +118,8 @@ no_kbd=false
 
 Recognized keys mirror the flags: `interval`, `min`, `max`, `max_lux`,
 `smooth`, `hysteresis`, `device`, `sensor_dir`, `kbd_on`, `kbd_off`,
-`kbd_device`, `no_kbd`, `no_nudge` (boolean keys accept `true`/`false`).
+`kbd_device`, `kbd_service`, `no_kbd`, `no_nudge` (boolean keys accept
+`true`/`false`).
 
 ### Mapping curve
 

@@ -21,6 +21,9 @@ struct Args {
     kbd_on_lux: f32,
     kbd_off_lux: f32,
     kbd_device: String,
+    // Optional companion systemd unit (e.g. an idle-dimmer): stopped when the
+    // room is bright, started again when it gets dark.
+    kbd_service: Option<String>,
     nudge_enabled: bool,
     verbose: bool,
 }
@@ -40,6 +43,7 @@ impl Default for Args {
             kbd_on_lux: 0.5,
             kbd_off_lux: 2.0,
             kbd_device: KBD_DEVICE.into(),
+            kbd_service: None,
             nudge_enabled: true,
             verbose: false,
         }
@@ -82,6 +86,9 @@ fn load_config(args: &mut Args) {
                         "kbd_on" => if let Ok(l) = v.parse() { args.kbd_on_lux = l; }
                         "kbd_off" => if let Ok(l) = v.parse() { args.kbd_off_lux = l; }
                         "kbd_device" => args.kbd_device = v.to_string(),
+                        "kbd_service" | "kbd-service" => {
+                            args.kbd_service = if v.is_empty() { None } else { Some(v.to_string()) }
+                        }
                         "no_kbd" => args.kbd_enabled = v != "0" && v.to_lowercase() != "false",
                         "no_nudge" => args.nudge_enabled = v != "0" && v.to_lowercase() != "false",
                         _ => {}
@@ -113,6 +120,10 @@ fn parse_args() -> Args {
             "--kbd-on" => a.kbd_on_lux = val("kbd-on").parse().unwrap_or_else(|_| usage_exit("bad --kbd-on")),
             "--kbd-off" => a.kbd_off_lux = val("kbd-off").parse().unwrap_or_else(|_| usage_exit("bad --kbd-off")),
             "--kbd-device" => a.kbd_device = val("kbd-device"),
+            "--kbd-service" => {
+                let u = val("kbd-service");
+                a.kbd_service = if u.is_empty() { None } else { Some(u) };
+            }
             "--no-kbd" => a.kbd_enabled = false,
             "--no-nudge" => a.nudge_enabled = false,
             "-v" | "--verbose" => a.verbose = true,
@@ -150,6 +161,8 @@ OPTIONS:
   --kbd-on <lux>        keyboard backlight on at/below this lux (default 0.5)
   --kbd-off <lux>       keyboard backlight off at/above this lux (default 2)
   --kbd-device <name>   keyboard backlight device (default asus::kbd_backlight)
+  --kbd-service <unit>  companion unit: stop when bright, start when dark
+                        (e.g. asus-backlight-idle.service; default: none)
   --no-kbd              disable keyboard backlight automation
   --no-nudge            disable user-nudge baseline shifting
 
@@ -203,6 +216,14 @@ fn set_kbd(on: bool, device: &str) -> std::io::Result<()> {
         eprintln!("brightnessctl (kbd) exited with {status}");
     }
     Ok(())
+}
+
+fn systemctl_user(action: &str, unit: &str) {
+    match process::Command::new("systemctl").args(["--user", action, unit]).status() {
+        Ok(s) if s.success() => {}
+        Ok(s) => eprintln!("systemctl --user {action} {unit} exited with {s}"),
+        Err(e) => eprintln!("systemctl --user {action} {unit}: {e}"),
+    }
 }
 
 fn read_backlight(device: &str, which: &str) -> Option<f32> {
@@ -365,6 +386,18 @@ fn main() {
                             cur_ema,
                             if want_on { "on" } else { "off" }
                         );
+                        // Companion daemon ownership: when the room is bright we
+                        // stop it entirely (nothing left to re-light the keyboard
+                        // behind our back); when it gets dark we hand control back
+                        // so idle-dimming and input-restore work normally.
+                        if let Some(unit) = &args.kbd_service {
+                            let action = if want_on { "start" } else { "stop" };
+                            systemctl_user(action, unit);
+                            println!(
+                                "lux={:>7.1} ema={:>7.1} -> {} {}",
+                                lux, cur_ema, action, unit
+                            );
+                        }
                     }
                 }
             }

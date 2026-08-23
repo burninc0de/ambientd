@@ -28,6 +28,9 @@
 # Schmitt trigger thresholds in lux: on at/below kbd_on, off at/above kbd_off.
 #kbd_on=0.5
 #kbd_off=2
+# Optional companion systemd unit (e.g. an idle-dimmer): stopped when the room
+# is bright, started again when it gets dark. Leave unset if you run nothing else.
+#kbd_service=asus-backlight-idle.service
 # Device name under /sys/class/leds/.
 #kbd_device=asus::kbd_backlight
 # Disable keyboard automation entirely (true/false).
