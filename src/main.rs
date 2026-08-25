@@ -232,6 +232,12 @@ fn read_backlight(device: &str, which: &str) -> Option<f32> {
         .ok()
 }
 
+fn read_kbd_brightness(device: &str) -> Option<u32> {
+    read_trim(&format!("/sys/class/leds/{device}/brightness"))?
+        .parse()
+        .ok()
+}
+
 fn runtime_dir() -> Option<String> {
     env::var("XDG_RUNTIME_DIR")
         .ok()
@@ -397,6 +403,21 @@ fn main() {
                                 "lux={:>7.1} ema={:>7.1} -> {} {}",
                                 lux, cur_ema, action, unit
                             );
+                        }
+                    }
+
+                    // Stray-light watchdog: whenever policy says "dark", enforce
+                    // it every tick regardless of who lit things up (lockscreen
+                    // hooks, Fn keys, EC quirks). Cost: one sysfs read per tick.
+                    if !want_on {
+                        if let Some(b) = read_kbd_brightness(&args.kbd_device) {
+                            if b > 0 {
+                                let _ = set_kbd(false, &args.kbd_device);
+                                println!(
+                                    "lux={:>7.1} ema={:>7.1} -> keyboard backlight off (stray)",
+                                    lux, cur_ema
+                                );
+                            }
                         }
                     }
                 }
