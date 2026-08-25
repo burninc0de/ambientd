@@ -157,9 +157,12 @@ clamped to `±(max - min)` and resets on restart. Disable with `--no-nudge`.
 ### Keyboard backlight
 
 The keyboard backlight (`asus::kbd_backlight`, levels 0-3) is automated with a
-Schmitt trigger on the smoothed lux: it turns **on** at or below `--kbd-on`
+Schmitt trigger on the raw lux: it turns **on** at or below `--kbd-on`
 (default 0.5 lux) and **off** at or above `--kbd-off` (default 2 lux). The dead
 zone between the two thresholds prevents flapping when sitting near one value.
+Keyboard decisions use **raw sensor readings by default**, so walking into a
+dark or bright room takes effect on the next poll instead of after the EMA's
+smoothing lag; set `--kbd-raw-lux false` to use the smoothed value instead.
 Transitions are logged:
 
 ```

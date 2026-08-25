@@ -21,6 +21,9 @@ struct Args {
     kbd_on_lux: f32,
     kbd_off_lux: f32,
     kbd_device: String,
+    // React to raw lux instead of the smoothed EMA for all keyboard decisions:
+    // binary on/off decisions want hysteresis, not smoothing.
+    kbd_raw_lux: bool,
     // Optional companion systemd unit (e.g. an idle-dimmer): stopped when the
     // room is bright, started again when it gets dark.
     kbd_service: Option<String>,
@@ -43,6 +46,7 @@ impl Default for Args {
             kbd_on_lux: 0.5,
             kbd_off_lux: 2.0,
             kbd_device: KBD_DEVICE.into(),
+            kbd_raw_lux: true,
             kbd_service: None,
             nudge_enabled: true,
             verbose: false,
@@ -86,6 +90,9 @@ fn load_config(args: &mut Args) {
                         "kbd_on" => if let Ok(l) = v.parse() { args.kbd_on_lux = l; }
                         "kbd_off" => if let Ok(l) = v.parse() { args.kbd_off_lux = l; }
                         "kbd_device" => args.kbd_device = v.to_string(),
+                        "kbd_raw_lux" | "kbd-raw-lux" => {
+                            args.kbd_raw_lux = v != "0" && v.to_lowercase() != "false";
+                        }
                         "kbd_service" | "kbd-service" => {
                             args.kbd_service = if v.is_empty() { None } else { Some(v.to_string()) }
                         }
@@ -120,6 +127,10 @@ fn parse_args() -> Args {
             "--kbd-on" => a.kbd_on_lux = val("kbd-on").parse().unwrap_or_else(|_| usage_exit("bad --kbd-on")),
             "--kbd-off" => a.kbd_off_lux = val("kbd-off").parse().unwrap_or_else(|_| usage_exit("bad --kbd-off")),
             "--kbd-device" => a.kbd_device = val("kbd-device"),
+            "--kbd-raw-lux" => {
+                let v = val("kbd-raw-lux");
+                a.kbd_raw_lux = v != "0" && v.to_lowercase() != "false";
+            }
             "--kbd-service" => {
                 let u = val("kbd-service");
                 a.kbd_service = if u.is_empty() { None } else { Some(u) };
@@ -161,6 +172,8 @@ OPTIONS:
   --kbd-on <lux>        keyboard backlight on at/below this lux (default 0.5)
   --kbd-off <lux>       keyboard backlight off at/above this lux (default 2)
   --kbd-device <name>   keyboard backlight device (default asus::kbd_backlight)
+  --kbd-raw-lux <bool>  react to raw lux instead of smoothed EMA for keyboard
+                        decisions (default true: instant room changes)
   --kbd-service <unit>  companion unit: stop when bright, start when dark
                         (e.g. asus-backlight-idle.service; default: none)
   --no-kbd              disable keyboard backlight automation
@@ -338,6 +351,10 @@ fn main() {
                     Some(prev) => prev + args.smooth * (lux - prev),
                 });
                 let cur_ema = ema.unwrap();
+                // Keyboard decisions run on raw lux by default: instant room
+                // changes, with the Schmitt dead zone handling sensor noise.
+                // Set kbd_raw_lux=false to fall back to the smoothed EMA.
+                let kbd_lux = if args.kbd_raw_lux { lux } else { cur_ema };
 
                 // Detect external brightness changes -> baseline shift
                 let mut nudged = 0.0f32;
@@ -380,8 +397,8 @@ fn main() {
                     // Schmitt trigger: on below --kbd-on, off above --kbd-off,
                     // dead zone in between prevents flapping at the boundary.
                     let want_on = match kbd_on {
-                        Some(true) => cur_ema < args.kbd_off_lux,
-                        _ => cur_ema <= args.kbd_on_lux,
+                        Some(true) => kbd_lux < args.kbd_off_lux,
+                        _ => kbd_lux <= args.kbd_on_lux,
                     };
                     if kbd_on != Some(want_on) {
                         let _ = set_kbd(want_on, &args.kbd_device);

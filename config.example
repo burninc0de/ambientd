@@ -26,8 +26,11 @@
 
 # --- Keyboard backlight ---
 # Schmitt trigger thresholds in lux: on at/below kbd_on, off at/above kbd_off.
+# Decisions use raw lux by default (instant room changes); set kbd_raw_lux=false
+# to react to the smoothed EMA instead.
 #kbd_on=0.5
 #kbd_off=2
+#kbd_raw_lux=true
 # Optional companion systemd unit (e.g. an idle-dimmer): stopped when the room
 # is bright, started again when it gets dark. Leave unset if you run nothing else.
 #kbd_service=asus-backlight-idle.service
